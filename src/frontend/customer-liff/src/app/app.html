@@ -1,0 +1,684 @@
+<div class="liff-mobile-shell">
+
+  <!-- Simulated LINE In-App Header -->
+  <header class="liff-top-header">
+    <div class="liff-bar-left">
+      @if (activeTab() === 'booking' && currentStep() > 1 && currentStep() < 5) {
+        <button class="nav-back-btn" (click)="currentStep.set(currentStep() - 1)">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+      }
+      <div class="shop-brand">
+        <div class="brand-avatar-box">
+          <img src="logo.png" alt="RubQue Logo" class="brand-avatar-img" />
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">
+            RubQue Barber & Salon
+            <i class="bi bi-patch-check-fill line-verified-badge" title="LINE Verified"></i>
+          </div>
+          <div class="brand-branch">สาขาสยามสแควร์ (10:00 - 20:00)</div>
+        </div>
+      </div>
+    </div>
+    <div class="liff-bar-right">
+      <span class="liff-indicator"><i class="bi bi-line"></i> LIFF</span>
+    </div>
+  </header>
+
+  <!-- Simulated LINE Push Notification Toast Banner -->
+  @if (showLineNotificationBanner()) {
+    <div class="line-notification-banner animate-slide-down">
+      <div class="line-notif-icon">
+        <i class="bi bi-line"></i>
+      </div>
+      <div class="line-notif-body">
+        <div class="line-notif-header">
+          <strong>LINE Official Account</strong>
+          <span class="time">เมื่อสักครู่</span>
+        </div>
+        <div class="line-notif-text">
+          ✅ ยืนยันการจองคิว <strong>{{ bookingSuccessData()?.bookingNo }}</strong> สำเร็จแล้ว! วันที่ {{ bookingSuccessData()?.dateStr }} เวลา {{ bookingSuccessData()?.timeStr }} น.
+        </div>
+      </div>
+      <button class="line-notif-close" (click)="showLineNotificationBanner.set(false)">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+  }
+
+  <!-- Main Content Container -->
+  <main class="liff-content">
+
+    <!-- ==================== TAB 1: BOOKING FLOW ==================== -->
+    @if (activeTab() === 'booking') {
+
+      <!-- Stepper Indicator -->
+      @if (currentStep() < 5) {
+        <div class="booking-stepper">
+          <div class="step-item" [class.active]="currentStep() >= 1">
+            <div class="step-circle">1</div>
+            <span class="step-label">บริการ</span>
+          </div>
+          <div class="step-line" [class.active]="currentStep() >= 2"></div>
+          <div class="step-item" [class.active]="currentStep() >= 2">
+            <div class="step-circle">2</div>
+            <span class="step-label">ช่าง</span>
+          </div>
+          <div class="step-line" [class.active]="currentStep() >= 3"></div>
+          <div class="step-item" [class.active]="currentStep() >= 3">
+            <div class="step-circle">3</div>
+            <span class="step-label">วัน/เวลา</span>
+          </div>
+          <div class="step-line" [class.active]="currentStep() >= 4"></div>
+          <div class="step-item" [class.active]="currentStep() >= 4">
+            <div class="step-circle">4</div>
+            <span class="step-label">ยืนยัน</span>
+          </div>
+        </div>
+      }
+
+      <!-- STEP 1: Select Service -->
+      @if (currentStep() === 1) {
+        <section class="step-container animate-fade-in">
+          <div class="section-title-wrap">
+            <h2>เลือกบริการที่คุณต้องการ</h2>
+            <p>โปรดเลือกแพ็กเกจบริการด้านล่างเพื่อเริ่มการจองคิว</p>
+          </div>
+
+          <!-- Category filter pills -->
+          <div class="category-pills">
+            @for (cat of categories; track cat.id) {
+              <button 
+                class="pill-btn" 
+                [class.active]="selectedCategory() === cat.id"
+                (click)="selectedCategory.set(cat.id)">
+                {{ cat.name }}
+              </button>
+            }
+          </div>
+
+          <!-- Services List -->
+          <div class="services-list">
+            @for (item of filteredServices(); track item.id) {
+              <div class="service-card" (click)="chooseService(item)">
+                <div class="service-icon-box">
+                  <i class="bi {{ item.icon }}"></i>
+                </div>
+                <div class="service-info">
+                  <div class="service-header">
+                    <h3>{{ item.name }}</h3>
+                    <div class="service-price">฿{{ item.price | number }}</div>
+                  </div>
+                  <p class="service-desc">{{ item.description }}</p>
+                  <div class="service-tags">
+                    <span class="tag-duration"><i class="bi bi-clock"></i> {{ item.durationMinutes }} นาที</span>
+                    @if (item.depositAmount > 0) {
+                      <span class="tag-deposit">มัดจำ ฿{{ item.depositAmount }}</span>
+                    } @else {
+                      <span class="tag-free-deposit">ไม่ต้องมัดจำ</span>
+                    }
+                  </div>
+                </div>
+                <div class="service-action-arrow">
+                  <i class="bi bi-chevron-right"></i>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- STEP 2: Select Barber -->
+      @if (currentStep() === 2) {
+        <section class="step-container animate-fade-in">
+          <div class="section-title-wrap">
+            <h2>เลือกช่างตัดผม</h2>
+            <p>เลือกช่างที่คุณถูกใจ หรือเลือกช่างท่านใดก็ได้เพื่อคิวที่รวดเร็ว</p>
+          </div>
+
+          <!-- Selected service reminder pill -->
+          @if (selectedService()) {
+            <div class="selected-summary-pill">
+              <i class="bi bi-check2-circle"></i>
+              <span>บริการ: <strong>{{ selectedService()?.name }}</strong> ({{ selectedService()?.durationMinutes }} นาที - ฿{{ selectedService()?.price }})</span>
+            </div>
+          }
+
+          <!-- Barbers List -->
+          <div class="barbers-list">
+            @for (barber of barbers; track barber.id) {
+              <div class="barber-card" [class.selected]="selectedBarber()?.id === barber.id" (click)="chooseBarber(barber)">
+                <div class="barber-avatar-wrap">
+                  <img [src]="barber.avatar" [alt]="barber.nickname" class="barber-avatar" />
+                  @if (barber.id > 0) {
+                    <span class="barber-rating"><i class="bi bi-star-fill"></i> {{ barber.rating }}</span>
+                  }
+                </div>
+                <div class="barber-details">
+                  <div class="barber-name-row">
+                    <h3>{{ barber.nickname }}</h3>
+                    <span class="barber-badge">{{ barber.experience }}</span>
+                  </div>
+                  <div class="barber-position">{{ barber.position }}</div>
+                  <div class="barber-specialty">{{ barber.specialty }}</div>
+                </div>
+                <div class="select-radio">
+                  <i class="bi" [class.bi-check-circle-fill]="selectedBarber()?.id === barber.id" [class.bi-circle]="selectedBarber()?.id !== barber.id"></i>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- STEP 3: Select Date & Time Slot -->
+      @if (currentStep() === 3) {
+        <section class="step-container animate-fade-in">
+          <div class="section-title-wrap">
+            <h2>เลือกวันและเวลา</h2>
+            <p>เลือกวันที่และรอบเวลาที่เปิดให้บริการ</p>
+          </div>
+
+          <!-- Date Strip Selector -->
+          <div class="date-strip-container">
+            <div class="date-strip">
+              @for (day of availableDates; track day.dateStr) {
+                <div 
+                  class="date-card" 
+                  [class.active]="selectedDate() === day.dateStr"
+                  (click)="chooseDate(day.dateStr)">
+                  <span class="day-name">{{ day.dayName }}</span>
+                  <span class="day-num">{{ day.dayNumber }}</span>
+                  <span class="day-month">{{ day.monthName }}</span>
+                  @if (day.isToday) {
+                    <span class="today-tag">วันนี้</span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Time Slots Grid -->
+          <div class="slots-container">
+            <div class="slots-header">
+              <h3>รอบเวลาที่ว่าง (เวลาทำการ 10:00 - 20:00)</h3>
+              <div class="slot-legend">
+                <span class="legend-item"><span class="legend-dot available"></span> ว่าง</span>
+                <span class="legend-item"><span class="legend-dot booked"></span> มีคิวแล้ว</span>
+              </div>
+            </div>
+
+            @if (isLoading()) {
+              <div class="loading-state">
+                <i class="bi bi-arrow-repeat spin-anim"></i> กำลังตรวจสอบคิวว่าง...
+              </div>
+            } @else {
+              <div class="time-grid">
+                @for (slot of timeSlots; track slot.time) {
+                  <button 
+                    class="time-slot-btn" 
+                    [class.disabled]="!slot.available"
+                    [class.selected]="selectedTime() === slot.time"
+                    [disabled]="!slot.available"
+                    (click)="chooseTime(slot.time, slot.available)">
+                    <span class="slot-time">{{ slot.time }}</span>
+                    @if (slot.available) {
+                      <span class="slot-status">ว่าง</span>
+                    } @else {
+                      <span class="slot-status booked">เต็ม</span>
+                    }
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Fixed bottom action bar for step 3 -->
+          <div class="step-footer">
+            <div class="footer-summary">
+              <span class="footer-label">เวลาที่เลือก:</span>
+              <span class="footer-val">{{ selectedTime() ? selectedTime() + ' น.' : 'ยังไม่ได้เลือก' }}</span>
+            </div>
+            <button class="primary-btn" [disabled]="!selectedTime()" (click)="goToStep4()">
+              ถัดไป <i class="bi bi-arrow-right"></i>
+            </button>
+          </div>
+        </section>
+      }
+
+      <!-- STEP 4: Customer Info & Confirmation -->
+      @if (currentStep() === 4) {
+        <section class="step-container animate-fade-in">
+          <div class="section-title-wrap">
+            <h2>ยืนยันข้อมูลการจอง</h2>
+            <p>กรุณาตรวจสอบข้อมูลและระบุช่องทางติดต่อ</p>
+          </div>
+
+          <!-- Summary Ticket Preview -->
+          <div class="booking-summary-card">
+            <div class="summary-card-header">
+              <span class="summary-badge"><i class="bi bi-bookmark-star"></i> รายละเอียดคิว</span>
+              <span class="summary-date">{{ selectedDate() }} • {{ selectedTime() }} น.</span>
+            </div>
+            <div class="summary-item">
+              <span class="item-title">บริการ:</span>
+              <span class="item-value highlight">{{ selectedService()?.name }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="item-title">ช่างผู้ให้บริการ:</span>
+              <span class="item-value">{{ selectedBarber()?.nickname }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="item-title">ระยะเวลา:</span>
+              <span class="item-value">{{ selectedService()?.durationMinutes }} นาที</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item total-row">
+              <span class="item-title">ยอดรวมทั้งหมด:</span>
+              <span class="item-value price">฿{{ selectedService()?.price | number }}</span>
+            </div>
+            @if (selectedService()?.depositAmount! > 0) {
+              <div class="summary-item deposit-row">
+                <span class="item-title">มัดจำหน้าร้าน:</span>
+                <span class="item-value deposit">฿{{ selectedService()?.depositAmount | number }}</span>
+              </div>
+            }
+          </div>
+
+          <!-- Contact Inputs -->
+          <div class="form-container">
+            <div class="form-group">
+              <label for="custName"><i class="bi bi-person"></i> ชื่อ-นามสกุลของคุณ <span class="required">*</span></label>
+              <input 
+                id="custName" 
+                type="text" 
+                class="form-control" 
+                placeholder="ระบุชื่อสำหรับเรียกคิว" 
+                [ngModel]="customerName()" 
+                (ngModelChange)="customerName.set($event)" />
+            </div>
+
+            <div class="form-group">
+              <label for="custPhone"><i class="bi bi-telephone"></i> เบอร์โทรศัพท์ <span class="required">*</span></label>
+              <input 
+                id="custPhone" 
+                type="tel" 
+                class="form-control" 
+                placeholder="08X-XXX-XXXX" 
+                [ngModel]="customerPhone()" 
+                (ngModelChange)="customerPhone.set($event)" />
+              <small class="form-hint">ใช้สำหรับตรวจสอบสถานะคิวและการแจ้งเตือน</small>
+            </div>
+
+            <div class="form-group">
+              <label for="custNote"><i class="bi bi-chat-left-text"></i> ข้อความเพิ่มเติม (ถ้ามี)</label>
+              <textarea 
+                id="custNote" 
+                class="form-control" 
+                rows="2" 
+                placeholder="เช่น ทรงผมที่อยากได้ หรือขอสระน้ำอุ่น"
+                [ngModel]="customerNote()" 
+                (ngModelChange)="customerNote.set($event)"></textarea>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button class="primary-btn submit-btn" [disabled]="isLoading()" (click)="submitBooking()">
+            @if (isLoading()) {
+              <i class="bi bi-arrow-repeat spin-anim"></i> กำลังบันทึกการจอง...
+            } @else {
+              <i class="bi bi-check2-circle"></i> ยืนยันการจองคิว
+            }
+          </button>
+        </section>
+      }
+
+      <!-- STEP 5: Success Ticket -->
+      @if (currentStep() === 5 && bookingSuccessData()) {
+        <section class="step-container animate-scale-up">
+          <div class="success-top-badge">
+            <div class="badge-icon"><i class="bi bi-check-lg"></i></div>
+            <h2>จองคิวสำเร็จแล้ว!</h2>
+            <p>ระบบได้ส่งข้อความยืนยันไปยัง LINE OA ของคุณแล้ว</p>
+          </div>
+
+          <!-- Boarding Pass Style Ticket Card -->
+          <div class="ticket-card">
+            <div class="ticket-header">
+              <div class="ticket-brand">
+                <div class="ticket-logo-box">
+                  <img src="logo.png" alt="RubQue Logo" class="ticket-logo-img" />
+                </div>
+                <div>
+                  <strong>RubQue Barber</strong>
+                  <span>สาขาสยามสแควร์</span>
+                </div>
+              </div>
+              <div class="ticket-queue-number">
+                <span class="label">หมายเลขคิว</span>
+                <span class="value">{{ bookingSuccessData()?.bookingNo }}</span>
+              </div>
+            </div>
+
+            <div class="ticket-notch-divider">
+              <div class="notch left"></div>
+              <div class="dashed-line"></div>
+              <div class="notch right"></div>
+            </div>
+
+            <div class="ticket-body">
+              <div class="ticket-grid">
+                <div class="t-cell">
+                  <span class="t-label">วันที่นัดหมาย</span>
+                  <span class="t-value">{{ bookingSuccessData()?.dateStr }}</span>
+                </div>
+                <div class="t-cell">
+                  <span class="t-label">เวลาที่นัดหมาย</span>
+                  <span class="t-value highlight">{{ bookingSuccessData()?.timeStr }} น.</span>
+                </div>
+                <div class="t-cell">
+                  <span class="t-label">บริการ</span>
+                  <span class="t-value">{{ bookingSuccessData()?.serviceName }}</span>
+                </div>
+                <div class="t-cell">
+                  <span class="t-label">ช่างตัดผม</span>
+                  <span class="t-value">{{ bookingSuccessData()?.barberName }}</span>
+                </div>
+                <div class="t-cell">
+                  <span class="t-label">ชื่อผู้จอง</span>
+                  <span class="t-value">{{ bookingSuccessData()?.customerName }}</span>
+                </div>
+                <div class="t-cell">
+                  <span class="t-label">ยอดชำระ</span>
+                  <span class="t-value price">฿{{ bookingSuccessData()?.totalAmount | number }}</span>
+                </div>
+              </div>
+
+              <!-- Barcode / QR Simulation -->
+              <div class="ticket-barcode">
+                <div class="barcode-lines"></div>
+                <span>{{ bookingSuccessData()?.bookingNo }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ticket Action Buttons -->
+          <div class="ticket-actions">
+            <button class="primary-btn line-btn" (click)="activeTab.set('my-queue')">
+              <i class="bi bi-card-checklist"></i> ดูคิวของฉัน
+            </button>
+            <button class="secondary-btn" (click)="startNewBooking()">
+              <i class="bi bi-plus-circle"></i> จองคิวใหม่อีกรายการ
+            </button>
+          </div>
+        </section>
+      }
+
+    }
+
+    <!-- ==================== TAB 2: MY QUEUE ==================== -->
+    @if (activeTab() === 'my-queue') {
+      <section class="step-container animate-fade-in">
+        <div class="section-title-wrap">
+          <h2>คิวของฉัน</h2>
+          <p>ตรวจสอบสถานะคิวและการนัดหมายปัจจุบันของคุณ</p>
+        </div>
+
+        <!-- Phone search box -->
+        <div class="queue-search-bar">
+          <input 
+            type="tel" 
+            placeholder="ค้นหาด้วยเบอร์โทร เช่น 089-123-4567" 
+            class="form-control"
+            [ngModel]="lookupPhone()" 
+            (ngModelChange)="lookupPhone.set($event)" />
+          <button class="search-btn" (click)="searchMyQueue()">
+            <i class="bi bi-search"></i> ค้นหา
+          </button>
+        </div>
+
+        <!-- Queue Cards List -->
+        <div class="queue-cards-list">
+          @if (myQueues().length === 0) {
+            <div class="empty-state">
+              <i class="bi bi-calendar-x empty-icon"></i>
+              <h3>ไม่พบคิวที่เปิดอยู่</h3>
+              <p>คุณยังไม่มีรายการจองคิวในขณะนี้</p>
+              <button class="primary-btn" (click)="activeTab.set('booking'); currentStep.set(1)">
+                จองคิวตอนนี้
+              </button>
+            </div>
+          } @else {
+            @for (q of myQueues(); track q.bookingNo) {
+              <div class="my-queue-card">
+                <div class="my-queue-header">
+                  <div class="queue-no-badge">
+                    <i class="bi bi-ticket-perforated"></i> {{ q.bookingNo }}
+                  </div>
+                  <span class="status-pill {{ q.status.toLowerCase() }}">
+                    @if (q.status === 'Confirmed') {
+                      <i class="bi bi-check-circle-fill"></i> ยืนยันแล้ว
+                    } @else if (q.status === 'InService') {
+                      <i class="bi bi-scissors"></i> กำลังให้บริการ
+                    } @else if (q.status === 'CheckedIn') {
+                      <i class="bi bi-person-check"></i> เช็คอินแล้ว
+                    } @else {
+                      {{ q.status }}
+                    }
+                  </span>
+                </div>
+
+                <div class="my-queue-body">
+                  <h4>{{ q.serviceName }}</h4>
+                  <div class="queue-meta">
+                    <span class="meta-item"><i class="bi bi-calendar"></i> {{ q.dateStr }}</span>
+                    <span class="meta-item"><i class="bi bi-clock"></i> {{ q.timeStr }}</span>
+                    <span class="meta-item"><i class="bi bi-person"></i> {{ q.barberName }}</span>
+                  </div>
+                </div>
+
+                <!-- Queue Status Timeline tracker -->
+                <div class="queue-tracker">
+                  <div class="tracker-step done">
+                    <div class="dot"><i class="bi bi-check"></i></div>
+                    <span>จองคิวแล้ว</span>
+                  </div>
+                  <div class="tracker-line" [class.done]="q.status === 'CheckedIn' || q.status === 'InService' || q.status === 'Completed'"></div>
+                  <div class="tracker-step" [class.done]="q.status === 'CheckedIn' || q.status === 'InService' || q.status === 'Completed'">
+                    <div class="dot"><i class="bi bi-geo-alt"></i></div>
+                    <span>ถึงร้าน</span>
+                  </div>
+                  <div class="tracker-line" [class.done]="q.status === 'InService' || q.status === 'Completed'"></div>
+                  <div class="tracker-step" [class.done]="q.status === 'InService' || q.status === 'Completed'">
+                    <div class="dot"><i class="bi bi-scissors"></i></div>
+                    <span>ตัดผม</span>
+                  </div>
+                </div>
+
+                <!-- Queue Action Buttons -->
+                <div class="my-queue-actions">
+                  <button class="queue-action-btn primary" (click)="viewTicketDetails(q)">
+                    <i class="bi bi-ticket-perforated"></i> ดูตั๋วคิว
+                  </button>
+                  <a href="https://maps.google.com" target="_blank" class="queue-action-btn secondary">
+                    <i class="bi bi-geo-alt"></i> นำทาง
+                  </a>
+                  <a href="tel:0811112222" class="queue-action-btn secondary">
+                    <i class="bi bi-telephone"></i> โทร
+                  </a>
+                </div>
+              </div>
+            }
+
+            <!-- Service Guidelines Card -->
+            <div class="queue-guidelines-card">
+              <h3><i class="bi bi-shield-check"></i> ข้อแนะนำก่อนเข้ารับบริการ</h3>
+              <ul class="guidelines-list">
+                <li>
+                  <i class="bi bi-clock-history"></i>
+                  <div>
+                    <strong>กรุณามาถึงก่อนเวลา 5-10 นาที</strong>
+                    <small>เพื่อให้ช่างเตรียมความพร้อมและเริ่มบริการได้ตรงเวลา</small>
+                  </div>
+                </li>
+                <li>
+                  <i class="bi bi-calendar-x"></i>
+                  <div>
+                    <strong>การเลื่อนหรือยกเลิกคิว</strong>
+                    <small>กรุณาติดต่อทางร้านล่วงหน้าอย่างน้อย 2 ชั่วโมง</small>
+                  </div>
+                </li>
+                <li>
+                  <i class="bi bi-p-square"></i>
+                  <div>
+                    <strong>ที่จอดรถสะดวกสบาย</strong>
+                    <small>มีที่จอดรถอาคารสยามกิตติ์ และบริเวณสยามสแควร์</small>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Member Rewards Card -->
+            <div class="rewards-card">
+              <div class="rewards-header">
+                <div class="rewards-title">
+                  <i class="bi bi-award-fill"></i>
+                  <div>
+                    <strong>RubQue Member Rewards</strong>
+                    <small>สมาชิกบัตรทอง (Gold Member)</small>
+                  </div>
+                </div>
+                <span class="member-tier-pill">3 / 10 ครั้ง</span>
+              </div>
+              <div class="rewards-progress-wrap">
+                <div class="rewards-progress-bar">
+                  <div class="rewards-progress-fill" style="width: 30%"></div>
+                </div>
+                <div class="rewards-perk">
+                  <span>สะสมครบ 10 ครั้ง ตัดผมฟรี 1 ครั้ง!</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Book Another Slot -->
+            <button class="add-booking-btn" (click)="startNewBooking()">
+              <i class="bi bi-plus-circle"></i> จองคิวเพิ่มอีกรายการ
+            </button>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- ==================== TAB 3: SHOP INFO ==================== -->
+    @if (activeTab() === 'shop-info') {
+      <section class="step-container animate-fade-in">
+        <div class="section-title-wrap">
+          <h2>ข้อมูลร้าน</h2>
+          <p>รายละเอียดสาขา เวลาทำการ และสถานที่ตั้ง</p>
+        </div>
+
+        <!-- Hero Shop Card -->
+        <div class="shop-hero-card">
+          <div class="hero-overlay"></div>
+          <div class="hero-content">
+            <span class="hero-tag"><img src="logo.png" alt="RubQue" class="tag-logo-img" /> Modern Barber & Salon</span>
+            <h2>RubQue Barber สาขาสยามสแควร์</h2>
+            <p>ร้านตัดผมและออกแบบทรงผมชายสไตล์โมเดิร์น & วินเทจ พรีเมียมใจกลางสยาม</p>
+          </div>
+        </div>
+
+        <!-- Shop details cards -->
+        <div class="info-cards-grid">
+          <div class="info-card">
+            <div class="info-icon"><i class="bi bi-clock-history"></i></div>
+            <div class="info-text">
+              <strong>เวลาเปิดให้บริการ</strong>
+              <p>วันจันทร์ - อาทิตย์ : 10:00 - 20:00 น.</p>
+              <span class="status-open">🟢 เปิดให้บริการอยู่</span>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-icon"><i class="bi bi-geo-alt"></i></div>
+            <div class="info-text">
+              <strong>ที่อยู่สาขา</strong>
+              <p>สยามสแควร์ ซอย 3 เขตปทุมวัน กรุงเทพฯ 10330</p>
+              <a href="https://maps.google.com" target="_blank" class="link-btn">
+                <i class="bi bi-compass"></i> ดูแผนที่บน Google Maps
+              </a>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-icon"><i class="bi bi-telephone"></i></div>
+            <div class="info-text">
+              <strong>โทรติดต่อร้าน</strong>
+              <p>02-123-4567, 081-111-2222</p>
+              <a href="tel:021234567" class="link-btn">
+                <i class="bi bi-telephone-outbound"></i> กดเพื่อโทรออก
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shop Amenities -->
+        <div class="amenities-wrap">
+          <h3>สิ่งอำนวยความสะดวก</h3>
+          <div class="amenities-grid">
+            <div class="amenity-item"><i class="bi bi-wifi"></i> Free Wi-Fi</div>
+            <div class="amenity-item"><i class="bi bi-cup-hot"></i> ชา/กาแฟบริการฟรี</div>
+            <div class="amenity-item"><i class="bi bi-snow"></i> ห้องแอร์เย็นฉ่ำ</div>
+            <div class="amenity-item"><i class="bi bi-credit-card"></i> รองรับสแกน QR</div>
+          </div>
+        </div>
+      </section>
+    }
+
+  </main>
+
+  <!-- Bottom LINE Rich Menu Navigation -->
+  <nav class="liff-bottom-nav">
+    <button 
+      class="nav-item" 
+      [class.active]="activeTab() === 'booking'" 
+      (click)="activeTab.set('booking')">
+      <div class="nav-icon-wrap">
+        <i class="bi bi-calendar2-plus"></i>
+      </div>
+      <span>จองคิว</span>
+    </button>
+
+    <button 
+      class="nav-item" 
+      [class.active]="activeTab() === 'my-queue'" 
+      (click)="activeTab.set('my-queue')">
+      <div class="nav-icon-wrap">
+        <i class="bi bi-card-checklist"></i>
+        @if (myQueues().length > 0) {
+          <span class="nav-badge">{{ myQueues().length }}</span>
+        }
+      </div>
+      <span>คิวของฉัน</span>
+    </button>
+
+    <button 
+      class="nav-item" 
+      [class.active]="activeTab() === 'shop-info'" 
+      (click)="activeTab.set('shop-info')">
+      <div class="nav-icon-wrap">
+        <i class="bi bi-shop"></i>
+      </div>
+      <span>ข้อมูลร้าน</span>
+    </button>
+  </nav>
+
+  <!-- Toast Notification -->
+  @if (showToast()) {
+    <div class="toast-popup animate-bounce">
+      <i class="bi bi-info-circle-fill"></i>
+      <span>{{ toastMessage() }}</span>
+    </div>
+  }
+
+</div>

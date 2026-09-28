@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="RubQue.Application/RubQue.Application.csproj" />
+  <Project Path="RubQue.Domain/RubQue.Domain.csproj" />
+  <Project Path="RubQue.Infrastructure/RubQue.Infrastructure.csproj" />
+  <Project Path="RubQue.WebApi/RubQue.WebApi.csproj" />
+</Solution>

@@ -1,0 +1,397 @@
+<div class="admin-layout">
+
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside class="admin-sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo-wrapper">
+        <img src="logo.png" alt="RubQue Logo" class="brand-logo-img" />
+      </div>
+      <div class="brand-info">
+        <h2>RubQue Admin</h2>
+        <span class="branch-tag">สาขาสยามสแควร์</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button 
+        class="nav-btn" 
+        [class.active]="activeMenu() === 'dashboard'" 
+        (click)="activeMenu.set('dashboard')">
+        <i class="bi bi-speedometer2"></i>
+        <span>แดชบอร์ด & คิววันนี้</span>
+        <span class="nav-count">{{ stats().total }}</span>
+      </button>
+
+      <button 
+        class="nav-btn" 
+        [class.active]="activeMenu() === 'bookings'" 
+        (click)="activeMenu.set('bookings')">
+        <i class="bi bi-calendar-check"></i>
+        <span>รายการจองทั้งหมด</span>
+      </button>
+
+      <button 
+        class="nav-btn" 
+        [class.active]="activeMenu() === 'services'" 
+        (click)="activeMenu.set('services')">
+        <i class="bi bi-scissors"></i>
+        <span>บริการของร้าน</span>
+      </button>
+
+      <button 
+        class="nav-btn" 
+        [class.active]="activeMenu() === 'barbers'" 
+        (click)="activeMenu.set('barbers')">
+        <i class="bi bi-people"></i>
+        <span>ช่างตัดผม & พนักงาน</span>
+      </button>
+    </nav>
+
+    <!-- Sidebar Footer / Current User -->
+    <div class="sidebar-user">
+      <div class="user-avatar">
+        <i class="bi bi-person-circle"></i>
+      </div>
+      <div class="user-info">
+        <strong>เจ้าของร้าน (Owner)</strong>
+        <span>admin@rubque.com</span>
+      </div>
+      <span class="online-indicator"></span>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN CONTENT AREA ==================== -->
+  <div class="admin-main">
+
+    <!-- Top Navigation Bar -->
+    <header class="admin-topbar">
+      <div class="topbar-left">
+        <h1 class="page-title">
+          @if (activeMenu() === 'dashboard') { แดชบอร์ด & จัดการคิวสดวันนี้ }
+          @else if (activeMenu() === 'bookings') { รายการจองคิวทั้งหมด }
+          @else if (activeMenu() === 'services') { บริการและราคา }
+          @else { รายชื่อช่างและพนักงาน }
+        </h1>
+        <span class="today-date-badge"><i class="bi bi-calendar3"></i> 28 กันยายน 2026</span>
+      </div>
+
+      <div class="topbar-right">
+        <button class="action-btn-secondary" (click)="refreshBookings()" [disabled]="isLoading()">
+          <i class="bi bi-arrow-clockwise" [class.spin-anim]="isLoading()"></i> รีเฟรช
+        </button>
+        <button class="action-btn-primary" (click)="showWalkInModal.set(true)">
+          <i class="bi bi-plus-lg"></i> เพิ่มคิว Walk-in หน้าร้าน
+        </button>
+      </div>
+    </header>
+
+    <!-- Main View Body -->
+    <main class="admin-content-body">
+
+      <!-- ==================== VIEW 1: DASHBOARD & LIVE QUEUES ==================== -->
+      @if (activeMenu() === 'dashboard' || activeMenu() === 'bookings') {
+
+        <!-- KPI Summary Stats Grid -->
+        <section class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon total"><i class="bi bi-people-fill"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-label">คิวทั้งหมดวันนี้</span>
+              <span class="kpi-val">{{ stats().total }}</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon confirmed"><i class="bi bi-clock-history"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-label">รอเข้ารับบริการ</span>
+              <span class="kpi-val">{{ stats().confirmed + stats().pending }}</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon inservice"><i class="bi bi-scissors"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-label">กำลังให้บริการ</span>
+              <span class="kpi-val">{{ stats().inService + stats().checkedIn }}</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon completed"><i class="bi bi-check2-circle"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-label">บริการเสร็จสิ้นแล้ว</span>
+              <span class="kpi-val">{{ stats().completed }}</span>
+            </div>
+          </div>
+
+          <div class="kpi-card revenue">
+            <div class="kpi-icon rev"><i class="bi bi-cash-stack"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-label">ยอดขายสำเร็จวันนี้</span>
+              <span class="kpi-val">฿{{ stats().revenue | number }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Queue Management Section -->
+        <section class="queue-management-box">
+          <div class="box-header">
+            <div class="header-filters">
+              <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input 
+                  type="text" 
+                  placeholder="ค้นหาชื่อลูกค้า, เบอร์โทร, เลขคิว, ช่าง..." 
+                  [ngModel]="searchQuery()" 
+                  (ngModelChange)="searchQuery.set($event)" />
+              </div>
+
+              <!-- Status filter buttons -->
+              <div class="status-filter-pills">
+                <button class="pill" [class.active]="filterStatus() === 'ALL'" (click)="filterStatus.set('ALL')">ทั้งหมด ({{ bookings().length }})</button>
+                <button class="pill" [class.active]="filterStatus() === 'Confirmed'" (click)="filterStatus.set('Confirmed')">ยืนยันแล้ว</button>
+                <button class="pill" [class.active]="filterStatus() === 'CheckedIn'" (click)="filterStatus.set('CheckedIn')">เช็คอิน</button>
+                <button class="pill" [class.active]="filterStatus() === 'InService'" (click)="filterStatus.set('InService')">กำลังตัด</button>
+                <button class="pill" [class.active]="filterStatus() === 'Completed'" (click)="filterStatus.set('Completed')">เสร็จสิ้น</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queue Table -->
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>เวลา / เลขคิว</th>
+                  <th>ข้อมูลลูกค้า</th>
+                  <th>บริการ</th>
+                  <th>ช่างผู้ให้บริการ</th>
+                  <th>ยอดเงิน</th>
+                  <th>สถานะ</th>
+                  <th class="text-right">จัดการคิว (Action)</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (filteredBookings().length === 0) {
+                  <tr>
+                    <td colspan="7" class="text-center empty-td">
+                      <i class="bi bi-inbox"></i> ไม่พบรายการคิวที่ค้นหา
+                    </td>
+                  </tr>
+                } @else {
+                  @for (item of filteredBookings(); track item.bookingId) {
+                    <tr [class.highlight-row]="item.status === 'InService'">
+                      <td>
+                        <div class="time-col">
+                          <strong>{{ item.timeStr }} น.</strong>
+                          <span class="code">{{ item.bookingNo }}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="customer-col">
+                          <strong>{{ item.customerName }}</strong>
+                          <span class="phone"><i class="bi bi-telephone"></i> {{ item.customerPhone }}</span>
+                          @if (item.note) {
+                            <small class="note"><i class="bi bi-chat-quote"></i> {{ item.note }}</small>
+                          }
+                        </div>
+                      </td>
+                      <td>
+                        <div class="service-col">
+                          <span>{{ item.serviceName }}</span>
+                          <small>{{ item.durationMinutes }} นาที</small>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="barber-col">
+                          <span class="barber-badge"><i class="bi bi-person-badge"></i> {{ item.barberName }}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <strong class="price-val">฿{{ item.totalAmount | number }}</strong>
+                      </td>
+                      <td>
+                        <span class="status-badge {{ item.status.toLowerCase() }}">
+                          @if (item.status === 'Confirmed') { <i class="bi bi-check-circle"></i> ยืนยันแล้ว }
+                          @else if (item.status === 'CheckedIn') { <i class="bi bi-geo-alt"></i> เช็คอินแล้ว }
+                          @else if (item.status === 'InService') { <i class="bi bi-scissors"></i> กำลังบริการ }
+                          @else if (item.status === 'Completed') { <i class="bi bi-check-all"></i> เสร็จสิ้น }
+                          @else if (item.status === 'Cancelled') { <i class="bi bi-x-circle"></i> ยกเลิก }
+                          @else { {{ item.status }} }
+                        </span>
+                      </td>
+                      <td class="text-right">
+                        <div class="actions-group">
+                          @if (item.status === 'Confirmed' || item.status === 'Pending') {
+                            <button class="btn-action checkin" (click)="updateStatus(item.bookingId, 'CheckedIn')" title="ลูกค้ามาถึงร้านแล้ว">
+                              <i class="bi bi-person-check"></i> เช็คอิน
+                            </button>
+                          }
+                          @if (item.status === 'CheckedIn') {
+                            <button class="btn-action start" (click)="updateStatus(item.bookingId, 'InService')" title="เริ่มตัดผม/ให้บริการ">
+                              <i class="bi bi-play-fill"></i> เริ่มบริการ
+                            </button>
+                          }
+                          @if (item.status === 'InService') {
+                            <button class="btn-action complete" (click)="updateStatus(item.bookingId, 'Completed')" title="ให้บริการเสร็จสิ้นและชำระเงิน">
+                              <i class="bi bi-check2"></i> เสร็จสิ้น
+                            </button>
+                          }
+                          @if (item.status !== 'Completed' && item.status !== 'Cancelled') {
+                            <button class="btn-action cancel" (click)="updateStatus(item.bookingId, 'Cancelled')" title="ยกเลิกคิว">
+                              <i class="bi bi-x"></i>
+                            </button>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      <!-- ==================== VIEW 2: SERVICES ==================== -->
+      @if (activeMenu() === 'services') {
+        <section class="admin-card-section">
+          <div class="section-top-row">
+            <h2>รายการบริการและราคาในระบบ</h2>
+            <button class="action-btn-primary"><i class="bi bi-plus"></i> เพิ่มบริการใหม่</button>
+          </div>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>หมวดหมู่</th>
+                  <th>ชื่อบริการ</th>
+                  <th>ระยะเวลา</th>
+                  <th>ราคา (บาท)</th>
+                  <th>มัดจำ</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (s of services; track s.id) {
+                  <tr>
+                    <td><span class="category-tag">{{ s.category }}</span></td>
+                    <td><strong>{{ s.name }}</strong></td>
+                    <td><i class="bi bi-clock"></i> {{ s.duration }} นาที</td>
+                    <td><strong class="price-val">฿{{ s.price | number }}</strong></td>
+                    <td>{{ s.deposit > 0 ? '฿' + s.deposit : 'ไม่ต้องมัดจำ' }}</td>
+                    <td><span class="status-badge confirmed">เปิดให้บริการ</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      <!-- ==================== VIEW 3: BARBERS ==================== -->
+      @if (activeMenu() === 'barbers') {
+        <section class="admin-card-section">
+          <div class="section-top-row">
+            <h2>รายชื่อช่างตัดผมและพนักงาน</h2>
+            <button class="action-btn-primary"><i class="bi bi-plus"></i> เพิ่มช่างใหม่</button>
+          </div>
+          <div class="barbers-grid">
+            @for (b of barbers; track b.id) {
+              <div class="barber-admin-card">
+                <div class="b-avatar"><i class="bi bi-person-fill"></i></div>
+                <div class="b-details">
+                  <h3>{{ b.nickname }}</h3>
+                  <p class="b-fullname">{{ b.name }}</p>
+                  <span class="b-pos">{{ b.position }}</span>
+                  <div class="b-phone"><i class="bi bi-telephone"></i> {{ b.phone }}</div>
+                </div>
+                <span class="b-status-pill" [class.ready]="b.status === 'พร้อมรับงาน'">{{ b.status }}</span>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+    </main>
+  </div>
+
+  <!-- ==================== WALK-IN MODAL DIALOG ==================== -->
+  @if (showWalkInModal()) {
+    <div class="modal-backdrop animate-fade-in">
+      <div class="modal-dialog animate-scale-up">
+        <div class="modal-header">
+          <h3><i class="bi bi-plus-circle"></i> เพิ่มคิว Walk-in หน้าร้าน</h3>
+          <button class="modal-close-btn" (click)="showWalkInModal.set(false)"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>ชื่อลูกค้า <span class="required">*</span></label>
+            <input 
+              type="text" 
+              class="form-control" 
+              placeholder="ระบุชื่อลูกค้า เช่น คุณสมบัติ" 
+              [ngModel]="walkInName()" 
+              (ngModelChange)="walkInName.set($event)" />
+          </div>
+
+          <div class="form-group">
+            <label>เบอร์โทรศัพท์</label>
+            <input 
+              type="tel" 
+              class="form-control" 
+              placeholder="08X-XXX-XXXX (เว้นว่างได้)" 
+              [ngModel]="walkInPhone()" 
+              (ngModelChange)="walkInPhone.set($event)" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>บริการ <span class="required">*</span></label>
+              <select class="form-control" [ngModel]="walkInServiceId()" (ngModelChange)="walkInServiceId.set(+$event)">
+                @for (s of services; track s.id) {
+                  <option [value]="s.id">{{ s.name }} ({{ s.price }}฿ - {{ s.duration }}นาที)</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>ช่างตัดผม <span class="required">*</span></label>
+              <select class="form-control" [ngModel]="walkInBarberId()" (ngModelChange)="walkInBarberId.set(+$event)">
+                @for (b of barbers; track b.id) {
+                  <option [value]="b.id">{{ b.nickname }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>เวลานัดหมาย</label>
+            <input 
+              type="time" 
+              class="form-control" 
+              [ngModel]="walkInTime()" 
+              (ngModelChange)="walkInTime.set($event)" />
+          </div>
+
+          <div class="form-group">
+            <label>หมายเหตุ</label>
+            <input 
+              type="text" 
+              class="form-control" 
+              placeholder="เช่น ลูกค้าเร่งด่วน หรือ ขอน้ำอุ่น" 
+              [ngModel]="walkInNote()" 
+              (ngModelChange)="walkInNote.set($event)" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="showWalkInModal.set(false)">ยกเลิก</button>
+          <button class="action-btn-primary" (click)="saveWalkIn()"><i class="bi bi-check-lg"></i> บันทึกคิว</button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

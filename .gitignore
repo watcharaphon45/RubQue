@@ -1,0 +1,100 @@
+# ==========================================
+# RubQue Platform - Root .gitignore
+# ==========================================
+
+# ------------------------------------------
+# .NET / C# Backend
+# ------------------------------------------
+**/[Bb]in/
+**/[Oo]bj/
+**/[Pp]ublish/
+**/[Dd]ebug/
+**/[Rr]elease/
+
+# Visual Studio / Visual Studio Code
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+
+# Build results
+[Tt]est[Rr]esults/
+[Bb]uild[Ll]og.*
+*.nupkg
+
+# Entity Framework Core migrations bundle & local DB
+*.db
+*.db-shm
+*.db-wal
+
+# ------------------------------------------
+# Node.js & Angular Frontends
+# ------------------------------------------
+**/node_modules/
+**/.angular/
+**/dist/
+**/tmp/
+**/out-tsc/
+**/bazel-out/
+
+# npm / yarn / pnpm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Cypress / Playwright / Karma test artifacts
+**/coverage/
+**/cypress/videos/
+**/cypress/screenshots/
+**/.nyc_output/
+
+# ------------------------------------------
+# Environment & Secrets
+# ------------------------------------------
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.Secrets.json
+
+# ------------------------------------------
+# Operating System Files
+# ------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+
+# ------------------------------------------
+# Logs & Temp files
+# ------------------------------------------
+*.log
+scratch/
+tmp/
+temp/
