@@ -58,6 +58,33 @@ export interface QueueItem {
   queuePosition?: number;
 }
 
+export interface BranchInfo {
+  branchId: number;
+  branchName: string;
+  phone: string;
+  address: string;
+  latitude?: number;
+  longitude?: number;
+  businessHours: {
+    dayOfWeek: number;
+    dayName: string;
+    openTime: string;
+    closeTime: string;
+    isClosed: boolean;
+  }[];
+}
+
+export interface ShopInfo {
+  shopId: number;
+  shopName: string;
+  logo?: string | null;
+  description: string;
+  phone: string;
+  email: string;
+  address: string;
+  branches: BranchInfo[];
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -67,7 +94,12 @@ export interface QueueItem {
 })
 export class App implements OnInit {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:5000/api';
+  private apiUrl = 'http://localhost:5005/api';
+
+  // Backend live state
+  shopInfo = signal<ShopInfo | null>(null);
+  activeBranch = signal<BranchInfo | null>(null);
+  backendConnected = signal<boolean>(false);
 
   // Navigation & Step state
   activeTab = signal<'booking' | 'my-queue' | 'shop-info'>('booking');
@@ -241,6 +273,138 @@ export class App implements OnInit {
     // Set default customer info for demonstration
     this.customerName.set('คุณวัชรพล');
     this.customerPhone.set('089-123-4567');
+
+    // Fetch live backend data from ASP.NET Core API
+    this.loadShopInfo();
+    this.loadServices();
+    this.loadEmployees();
+  }
+
+  loadShopInfo() {
+    this.http.get<{ succeeded: boolean; data: ShopInfo }>(`${this.apiUrl}/shops/info`)
+      .subscribe({
+        next: (res) => {
+          if (res?.data) {
+            this.shopInfo.set(res.data);
+            if (res.data.branches && res.data.branches.length > 0) {
+              this.activeBranch.set(res.data.branches[0]);
+            }
+            this.backendConnected.set(true);
+          }
+        },
+        error: (err) => {
+          console.warn('Could not fetch shop info from backend:', err);
+        }
+      });
+  }
+
+  loadServices() {
+    this.http.get<{ succeeded: boolean; data: any[] }>(`${this.apiUrl}/services`)
+      .subscribe({
+        next: (res) => {
+          if (res?.data && res.data.length > 0) {
+            const catList: { id: string; name: string }[] = [{ id: 'all', name: 'ทั้งหมด' }];
+            const serviceList: ServiceItem[] = [];
+
+            res.data.forEach((catGroup: any) => {
+              const catIdStr = `cat-${catGroup.categoryId}`;
+              catList.push({
+                id: catIdStr,
+                name: catGroup.categoryName
+              });
+
+              if (catGroup.services) {
+                catGroup.services.forEach((s: any) => {
+                  serviceList.push({
+                    id: s.serviceId,
+                    categoryId: catGroup.categoryId,
+                    categoryName: catIdStr,
+                    name: s.serviceName,
+                    description: s.description || 'บริการตัดแต่งและดูแลเส้นผมระดับพรีเมียม',
+                    durationMinutes: s.durationMinutes,
+                    price: s.price,
+                    depositAmount: s.depositAmount,
+                    icon: this.getServiceIcon(s.serviceName, catGroup.categoryName)
+                  });
+                });
+              }
+            });
+
+            this.categories = catList;
+            this.services = serviceList;
+            this.backendConnected.set(true);
+          }
+        },
+        error: (err) => {
+          console.warn('Could not fetch services from backend:', err);
+        }
+      });
+  }
+
+  loadEmployees() {
+    this.http.get<{ succeeded: boolean; data: any[] }>(`${this.apiUrl}/employees?branchId=1`)
+      .subscribe({
+        next: (res) => {
+          if (res?.data && res.data.length > 0) {
+            const defaultAvatars = [
+              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+              'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+              'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80',
+              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
+            ];
+
+            const barberList: BarberItem[] = [
+              {
+                id: 0,
+                name: 'ให้ระบบเลือกช่างให้',
+                nickname: 'ช่างท่านใดก็ได้ (เร็วที่สุด)',
+                position: 'Any Barber Available',
+                avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+                rating: 4.9,
+                experience: 'คิวเร็วที่สุด',
+                specialty: 'แนะนำสำหรับผู้ที่ต้องการเวลาที่สะดวกที่สุด'
+              }
+            ];
+
+            res.data.forEach((emp: any, idx: number) => {
+              barberList.push({
+                id: emp.employeeId,
+                name: emp.name,
+                nickname: emp.nickname || emp.name,
+                position: emp.position || 'ช่างประจำสาขา',
+                avatar: emp.profileImage || defaultAvatars[idx % defaultAvatars.length],
+                rating: Number((4.8 + ((idx % 3) * 0.1)).toFixed(1)),
+                experience: emp.position?.includes('Master') ? '10+ ปี' : '5+ ปี',
+                specialty: emp.services?.map((s: any) => s.serviceName).join(', ') || 'ผู้เชี่ยวชาญการออกแบบทรงผม'
+              });
+            });
+
+            this.barbers = barberList;
+          }
+        },
+        error: (err) => {
+          console.warn('Could not fetch employees from backend:', err);
+        }
+      });
+  }
+
+  private getServiceIcon(name: string, catName: string): string {
+    const combined = `${name} ${catName}`.toLowerCase();
+    if (combined.includes('ตัด') || combined.includes('scissors') || combined.includes('วินเทจ')) return 'bi-scissors';
+    if (combined.includes('สระ') || combined.includes('ไดร์') || combined.includes('droplet')) return 'bi-droplet';
+    if (combined.includes('ดัด') || combined.includes('perm') || combined.includes('wind')) return 'bi-wind';
+    if (combined.includes('สี') || combined.includes('color') || combined.includes('palette')) return 'bi-palette';
+    if (combined.includes('สปา') || combined.includes('spa') || combined.includes('ทรีต')) return 'bi-heart-pulse';
+    return 'bi-scissors';
+  }
+
+  formatBusinessHours(): string {
+    const branch = this.activeBranch();
+    if (!branch?.businessHours || branch.businessHours.length === 0) {
+      return 'วันจันทร์ - อาทิตย์ : 10:00 - 20:00 น.';
+    }
+    const sample = branch.businessHours[0];
+    return `วันจันทร์ - อาทิตย์ : ${sample.openTime} - ${sample.closeTime} น.`;
   }
 
   generateNext7Days() {

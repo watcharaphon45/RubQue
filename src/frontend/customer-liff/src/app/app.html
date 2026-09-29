@@ -14,14 +14,19 @@
         </div>
         <div class="brand-text">
           <div class="brand-name">
-            RubQue Barber & Salon
+            {{ shopInfo()?.shopName || 'RubQue Barber & Salon' }}
             <i class="bi bi-patch-check-fill line-verified-badge" title="LINE Verified"></i>
           </div>
-          <div class="brand-branch">สาขาสยามสแควร์ (10:00 - 20:00)</div>
+          <div class="brand-branch">{{ activeBranch()?.branchName || 'สาขาสยามสแควร์ (10:00 - 20:00)' }}</div>
         </div>
       </div>
     </div>
     <div class="liff-bar-right">
+      @if (backendConnected()) {
+        <span class="backend-badge" title="เชื่อมต่อ Backend API http://localhost:5005 สำเร็จ">
+          <i class="bi bi-broadcast"></i> Backend
+        </span>
+      }
       <span class="liff-indicator"><i class="bi bi-line"></i> LIFF</span>
     </div>
   </header>
@@ -583,8 +588,8 @@
           <div class="hero-overlay"></div>
           <div class="hero-content">
             <span class="hero-tag"><img src="logo.png" alt="RubQue" class="tag-logo-img" /> Modern Barber & Salon</span>
-            <h2>RubQue Barber สาขาสยามสแควร์</h2>
-            <p>ร้านตัดผมและออกแบบทรงผมชายสไตล์โมเดิร์น & วินเทจ พรีเมียมใจกลางสยาม</p>
+            <h2>{{ shopInfo()?.shopName || 'RubQue Classic Barber & Salon' }}</h2>
+            <p>{{ shopInfo()?.description || 'ร้านตัดผมและออกแบบทรงผมชายสไตล์โมเดิร์น & วินเทจ พรีเมียมใจกลางสยาม' }}</p>
           </div>
         </div>
 
@@ -594,7 +599,7 @@
             <div class="info-icon"><i class="bi bi-clock-history"></i></div>
             <div class="info-text">
               <strong>เวลาเปิดให้บริการ</strong>
-              <p>วันจันทร์ - อาทิตย์ : 10:00 - 20:00 น.</p>
+              <p>{{ formatBusinessHours() }}</p>
               <span class="status-open">🟢 เปิดให้บริการอยู่</span>
             </div>
           </div>
@@ -603,7 +608,7 @@
             <div class="info-icon"><i class="bi bi-geo-alt"></i></div>
             <div class="info-text">
               <strong>ที่อยู่สาขา</strong>
-              <p>สยามสแควร์ ซอย 3 เขตปทุมวัน กรุงเทพฯ 10330</p>
+              <p>{{ activeBranch()?.address || shopInfo()?.address || 'สยามสแควร์ ซอย 3 เขตปทุมวัน กรุงเทพฯ 10330' }}</p>
               <a href="https://maps.google.com" target="_blank" class="link-btn">
                 <i class="bi bi-compass"></i> ดูแผนที่บน Google Maps
               </a>
@@ -614,8 +619,8 @@
             <div class="info-icon"><i class="bi bi-telephone"></i></div>
             <div class="info-text">
               <strong>โทรติดต่อร้าน</strong>
-              <p>02-123-4567, 081-111-2222</p>
-              <a href="tel:021234567" class="link-btn">
+              <p>{{ activeBranch()?.phone || shopInfo()?.phone || '02-123-4567' }}</p>
+              <a [href]="'tel:' + (activeBranch()?.phone || shopInfo()?.phone || '021234567')" class="link-btn">
                 <i class="bi bi-telephone-outbound"></i> กดเพื่อโทรออก
               </a>
             </div>

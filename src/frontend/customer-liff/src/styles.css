@@ -63,6 +63,13 @@ body {
   line-height: 1.5;
 }
 
+app-root {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 100vh;
+}
+
 /* App container constrained like a smartphone inside LIFF or centered on desktop */
 .liff-mobile-shell {
   width: 100%;
@@ -75,6 +82,7 @@ body {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
   border-left: 1px solid var(--border-color);
   border-right: 1px solid var(--border-color);
+  box-sizing: border-box;
 }
 
 /* Scrollbar customization */

@@ -95,6 +95,20 @@
   gap: 4px;
 }
 
+.backend-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: fadeIn 0.3s ease-in;
+}
+
 /* ==================== SIMULATED LINE NOTIFICATION BANNER ==================== */
 .line-notification-banner {
   margin: 12px 16px 0;
@@ -155,7 +169,14 @@
 /* ==================== CONTENT CONTAINER ==================== */
 .liff-content {
   flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   padding: 16px 16px 120px;
+}
+
+.step-container {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .section-title-wrap {
@@ -1431,24 +1452,27 @@
   border-left: 1px solid var(--border-color);
   border-right: 1px solid var(--border-color);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
-  display: flex;
-  justify-content: space-around;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   padding: 10px 8px 14px;
   z-index: 50;
   box-sizing: border-box;
 }
 
 .nav-item {
-  flex: 1;
   background: transparent;
+  border: none;
   color: var(--text-dim);
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   font-size: 0.82rem;
   padding: 6px 4px 4px;
+  white-space: nowrap;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 .nav-icon-wrap {
   position: relative;
