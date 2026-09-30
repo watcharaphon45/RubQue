@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 export interface BookingAdminItem {
   bookingId: number;
@@ -27,6 +27,14 @@ export interface AdminServiceItem {
   deposit: number;
 }
 
+export interface BarberScheduleItem {
+  dayOfWeek: number;
+  dayName: string;
+  startTime: string;
+  endTime: string;
+  isOff: boolean;
+}
+
 export interface AdminBarberItem {
   id: number;
   name: string;
@@ -34,6 +42,18 @@ export interface AdminBarberItem {
   position: string;
   phone: string;
   status: string;
+  offDaysText?: string;
+  services?: string[];
+  schedules?: BarberScheduleItem[];
+}
+
+export interface CurrentAdminUser {
+  userId: number;
+  username: string;
+  fullName: string;
+  role: string;
+  shopName?: string;
+  branchName?: string;
 }
 
 @Component({
@@ -45,105 +65,38 @@ export interface AdminBarberItem {
 })
 export class App implements OnInit {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:5000/api';
+  private apiUrl = 'http://localhost:5005/api';
 
+  // Auth signals
+  token = signal<string | null>(localStorage.getItem('rubque_admin_token'));
+  currentUser = signal<CurrentAdminUser | null>(null);
+  loginUsername = signal<string>('admin');
+  loginPassword = signal<string>('Admin1234!');
+  loginError = signal<string>('');
+  isLoggingIn = signal<boolean>(false);
+
+  // App UI signals
   activeMenu = signal<'dashboard' | 'bookings' | 'services' | 'barbers'>('dashboard');
   filterStatus = signal<string>('ALL');
   searchQuery = signal<string>('');
   showWalkInModal = signal<boolean>(false);
   isLoading = signal<boolean>(false);
+  actionMessage = signal<string>('');
 
   // Walk-in form signals
   walkInName = signal<string>('');
   walkInPhone = signal<string>('');
   walkInServiceId = signal<number>(1);
   walkInBarberId = signal<number>(1);
+  walkInDate = signal<string>(new Date().toISOString().slice(0, 10));
   walkInTime = signal<string>('14:00');
   walkInNote = signal<string>('');
+  walkInError = signal<string>('');
+  isSubmittingWalkIn = signal<boolean>(false);
 
-  bookings = signal<BookingAdminItem[]>([
-    {
-      bookingId: 1,
-      bookingNo: 'BK2026092801',
-      customerName: 'คุณวัชรพล ภูสุวรรณ',
-      customerPhone: '089-123-4567',
-      serviceName: 'ตัดผมชาย สไตล์โมเดิร์น / วินเทจ',
-      barberName: 'ช่างเอก (Master Barber)',
-      dateStr: '2026-09-28',
-      timeStr: '10:00',
-      durationMinutes: 45,
-      totalAmount: 400,
-      status: 'Completed',
-      note: 'ขอเฟดข้างเบอร์ 1'
-    },
-    {
-      bookingId: 2,
-      bookingNo: 'BK2026092802',
-      customerName: 'คุณธนภัทร สุขสม',
-      customerPhone: '081-555-8899',
-      serviceName: 'สระไดร์ & เซ็ตทรงพรีเมียม',
-      barberName: 'ช่างบอย',
-      dateStr: '2026-09-28',
-      timeStr: '11:00',
-      durationMinutes: 30,
-      totalAmount: 250,
-      status: 'InService'
-    },
-    {
-      bookingId: 3,
-      bookingNo: 'BK2026092803',
-      customerName: 'คุณกิตติศักดิ์ เจริญพร',
-      customerPhone: '086-444-2211',
-      serviceName: 'ดัดวอลลุ่มผมชาย (Men Perm)',
-      barberName: 'ช่างแจ็ค (Color Specialist)',
-      dateStr: '2026-09-28',
-      timeStr: '13:00',
-      durationMinutes: 90,
-      totalAmount: 1600,
-      status: 'CheckedIn',
-      note: 'ดัดลอนธรรมชาติ'
-    },
-    {
-      bookingId: 4,
-      bookingNo: 'BK2026092804',
-      customerName: 'คุณณัฐพล อารีย์',
-      customerPhone: '095-777-3322',
-      serviceName: 'ตัดผมชาย สไตล์โมเดิร์น / วินเทจ',
-      barberName: 'ช่างเอก (Master Barber)',
-      dateStr: '2026-09-28',
-      timeStr: '15:00',
-      durationMinutes: 45,
-      totalAmount: 400,
-      status: 'Confirmed'
-    },
-    {
-      bookingId: 5,
-      bookingNo: 'BK2026092805',
-      customerName: 'คุณศุภชัย มั่นคง',
-      customerPhone: '083-999-1122',
-      serviceName: 'ทำสีผมแฟชั่น / ฟอกสี',
-      barberName: 'ช่างแจ็ค (Color Specialist)',
-      dateStr: '2026-09-28',
-      timeStr: '16:30',
-      durationMinutes: 120,
-      totalAmount: 2200,
-      status: 'Pending'
-    }
-  ]);
-
-  services: AdminServiceItem[] = [
-    { id: 1, name: 'ตัดผมชาย สไตล์โมเดิร์น / วินเทจ', category: 'ตัดผม', duration: 45, price: 400, deposit: 100 },
-    { id: 2, name: 'สระไดร์ & เซ็ตทรงพรีเมียม', category: 'ตัดผม', duration: 30, price: 250, deposit: 0 },
-    { id: 3, name: 'ดัดวอลลุ่มผมชาย (Men Perm)', category: 'ทำสี & ดัด', duration: 90, price: 1600, deposit: 500 },
-    { id: 4, name: 'ทำสีผมแฟชั่น / ฟอกสี', category: 'ทำสี & ดัด', duration: 120, price: 2200, deposit: 500 },
-    { id: 5, name: 'สปาดีท็อกซ์หนังศีรษะ', category: 'สปา', duration: 45, price: 750, deposit: 200 }
-  ];
-
-  barbers: AdminBarberItem[] = [
-    { id: 1, name: 'เอกชัย วงศ์สุวรรณ', nickname: 'ช่างเอก (Master Barber)', position: 'Master Stylist', phone: '081-111-2222', status: 'พร้อมรับงาน' },
-    { id: 2, name: 'พงศธร มีสุข', nickname: 'ช่างบอย', position: 'Senior Barber', phone: '082-222-3333', status: 'ติดลูกค้า' },
-    { id: 3, name: 'แจ็คกี้ สมชาย', nickname: 'ช่างแจ็ค', position: 'Color & Perm Specialist', phone: '083-333-4444', status: 'พร้อมรับงาน' }
-  ];
+  bookings = signal<BookingAdminItem[]>([]);
+  services = signal<AdminServiceItem[]>([]);
+  barbers = signal<AdminBarberItem[]>([]);
 
   // Computed KPI statistics
   stats = computed(() => {
@@ -182,16 +135,108 @@ export class App implements OnInit {
   });
 
   ngOnInit() {
-    this.refreshBookings();
+    const storedToken = this.token();
+    if (storedToken) {
+      this.checkAuthMe(storedToken);
+    }
   }
 
+  private getAuthHeaders(): HttpHeaders {
+    const currentToken = this.token();
+    let headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    if (currentToken) {
+      headers = headers.set('Authorization', `Bearer ${currentToken}`);
+    }
+    return headers;
+  }
+
+  // 1. JWT Authentication
+  login(preUsername?: string, prePassword?: string) {
+    const username = preUsername ?? this.loginUsername().trim();
+    const password = prePassword ?? this.loginPassword().trim();
+
+    if (!username || !password) {
+      this.loginError.set('กรุณาระบุ Username และ Password');
+      return;
+    }
+
+    this.isLoggingIn.set(true);
+    this.loginError.set('');
+
+    this.http.post<any>(`${this.apiUrl}/auth/login`, { username, password })
+      .subscribe({
+        next: (res) => {
+          this.isLoggingIn.set(false);
+          if (res?.succeeded && res.data?.token) {
+            const token = res.data.token;
+            localStorage.setItem('rubque_admin_token', token);
+            this.token.set(token);
+            this.currentUser.set({
+              userId: res.data.userId,
+              username: res.data.username,
+              fullName: res.data.fullName,
+              role: res.data.role === 1 ? 'Owner' : 'Staff',
+              shopName: 'RubQue Barber & Salon',
+              branchName: 'สาขาสยามสแควร์'
+            });
+            this.loadAllData();
+          } else {
+            this.loginError.set(res?.message || 'เข้าสู่ระบบไม่สำเร็จ');
+          }
+        },
+        error: (err) => {
+          this.isLoggingIn.set(false);
+          this.loginError.set(err?.error?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+        }
+      });
+  }
+
+  logout() {
+    localStorage.removeItem('rubque_admin_token');
+    this.token.set(null);
+    this.currentUser.set(null);
+    this.bookings.set([]);
+  }
+
+  checkAuthMe(token: string) {
+    this.http.get<any>(`${this.apiUrl}/auth/me`, {
+      headers: new HttpHeaders({ 'Authorization': `Bearer ${token}` })
+    }).subscribe({
+      next: (res) => {
+        if (res?.succeeded && res.data) {
+          this.currentUser.set({
+            userId: res.data.userId,
+            username: res.data.username,
+            fullName: res.data.fullName,
+            role: res.data.role,
+            shopName: res.data.shopName || 'RubQue Barber & Salon',
+            branchName: res.data.branchName || 'สาขาสยามสแควร์'
+          });
+          this.loadAllData();
+        } else {
+          this.logout();
+        }
+      },
+      error: () => {
+        this.logout();
+      }
+    });
+  }
+
+  loadAllData() {
+    this.refreshBookings();
+    this.loadServices();
+    this.loadEmployees();
+  }
+
+  // 2. Fetch Live Bookings
   refreshBookings() {
     this.isLoading.set(true);
-    this.http.get<any>(`${this.apiUrl}/bookings`)
+    this.http.get<any>(`${this.apiUrl}/bookings`, { headers: this.getAuthHeaders() })
       .subscribe({
         next: (res) => {
           this.isLoading.set(false);
-          if (res?.data && res.data.length > 0) {
+          if (res?.data) {
             const list: BookingAdminItem[] = res.data.map((b: any) => ({
               bookingId: b.bookingId,
               bookingNo: b.bookingNo,
@@ -211,19 +256,88 @@ export class App implements OnInit {
         },
         error: () => {
           this.isLoading.set(false);
-          // Backend offline or fallback to mock list
         }
       });
   }
 
-  // Update status (Check-in, Start Service, Complete, Cancel)
-  updateStatus(id: number, newStatus: 'Confirmed' | 'CheckedIn' | 'InService' | 'Completed' | 'Cancelled') {
-    // 1. Optimistic UI update
-    this.bookings.update(list =>
-      list.map(b => b.bookingId === id ? { ...b, status: newStatus } : b)
-    );
+  // 3. Fetch Live Services
+  loadServices() {
+    this.http.get<any>(`${this.apiUrl}/services`, { headers: this.getAuthHeaders() })
+      .subscribe({
+        next: (res) => {
+          if (res?.data) {
+            const allServices: AdminServiceItem[] = [];
+            for (const cat of res.data) {
+              if (cat.services) {
+                for (const s of cat.services) {
+                  allServices.push({
+                    id: s.serviceId,
+                    name: s.serviceName,
+                    category: cat.categoryName,
+                    duration: s.durationMinutes,
+                    price: s.price,
+                    deposit: s.depositAmount
+                  });
+                }
+              }
+            }
+            this.services.set(allServices);
+            if (allServices.length > 0) {
+              this.walkInServiceId.set(allServices[0].id);
+            }
+          }
+        },
+        error: () => {}
+      });
+  }
 
-    // 2. Call backend PATCH
+  // 4. Fetch Live Employees with Schedules & Off-Days
+  loadEmployees() {
+    this.http.get<any>(`${this.apiUrl}/employees?branchId=1`, { headers: this.getAuthHeaders() })
+      .subscribe({
+        next: (res) => {
+          if (res?.data) {
+            const dayNamesTh: Record<number, string> = {
+              0: 'อาทิตย์',
+              1: 'จันทร์',
+              2: 'อังคาร',
+              3: 'พุธ',
+              4: 'พฤหัสบดี',
+              5: 'ศุกร์',
+              6: 'เสาร์'
+            };
+
+            const empList: AdminBarberItem[] = res.data.map((e: any) => {
+              const offDays = (e.schedules || [])
+                .filter((s: any) => s.isOff)
+                .map((s: any) => `วัน${dayNamesTh[s.dayOfWeek] || s.dayName}`)
+                .join(', ');
+
+              return {
+                id: e.employeeId,
+                name: e.name,
+                nickname: e.nickname ? `ช่าง${e.nickname}` : e.name,
+                position: e.position || 'Barber Stylist',
+                phone: '08' + (Math.floor(10000000 + Math.random() * 90000000)),
+                status: 'พร้อมรับงาน',
+                offDaysText: offDays ? `หยุดทุก${offDays}` : 'ทำงานทุกวัน',
+                services: (e.services || []).map((s: any) => s.serviceName),
+                schedules: e.schedules
+              };
+            });
+
+            this.barbers.set(empList);
+            if (empList.length > 0) {
+              this.walkInBarberId.set(empList[0].id);
+            }
+          }
+        },
+        error: () => {}
+      });
+  }
+
+  // 5. Update status (Check-in, Start Service, Complete, Cancel)
+  updateStatus(id: number, newStatus: 'Confirmed' | 'CheckedIn' | 'InService' | 'Completed' | 'Cancelled') {
     const statusEnumMap: Record<string, number> = {
       'Pending': 0,
       'Confirmed': 1,
@@ -233,65 +347,94 @@ export class App implements OnInit {
       'Cancelled': 5
     };
 
-    this.http.patch(`${this.apiUrl}/bookings/${id}/status`, { status: statusEnumMap[newStatus] })
+    // Optimistic UI update
+    this.bookings.update(list =>
+      list.map(b => b.bookingId === id ? { ...b, status: newStatus } : b)
+    );
+
+    this.http.patch(`${this.apiUrl}/bookings/${id}/status`, 
+      { status: statusEnumMap[newStatus] },
+      { headers: this.getAuthHeaders() }
+    ).subscribe({
+      next: () => {
+        this.showToast(`อัปเดตสถานะคิวเป็น "${this.getStatusLabel(newStatus)}" เรียบร้อย`);
+        this.refreshBookings();
+      },
+      error: (err) => {
+        this.showToast(`เกิดข้อผิดพลาดในการอัปเดตสถานะ: ${err?.error?.message || 'กรุณาลองใหม่อีกครั้ง'}`);
+        this.refreshBookings();
+      }
+    });
+  }
+
+  // 6. Save new walk-in booking from modal to backend
+  saveWalkIn() {
+    const name = this.walkInName().trim();
+    const phone = this.walkInPhone().trim();
+    if (!name || !phone) {
+      this.walkInError.set('กรุณาระบุชื่อและเบอร์โทรศัพท์ของลูกค้า');
+      return;
+    }
+
+    this.isSubmittingWalkIn.set(true);
+    this.walkInError.set('');
+
+    const payload = {
+      shopId: 1,
+      branchId: 1,
+      employeeId: this.walkInBarberId() > 0 ? this.walkInBarberId() : null,
+      serviceId: this.walkInServiceId(),
+      bookingDate: this.walkInDate(),
+      startTime: this.walkInTime(),
+      customerName: name,
+      customerPhone: phone,
+      note: this.walkInNote() ? `[Walk-in] ${this.walkInNote()}` : '[Walk-in หน้าร้าน]'
+    };
+
+    this.http.post<any>(`${this.apiUrl}/bookings`, payload, { headers: this.getAuthHeaders() })
       .subscribe({
-        next: () => {},
-        error: () => {}
+        next: (res) => {
+          this.isSubmittingWalkIn.set(false);
+          if (res?.succeeded) {
+            this.showWalkInModal.set(false);
+            this.resetWalkInForm();
+            this.showToast(`สร้างคิว Walk-in เรียบร้อย: ${res.data?.bookingNo || ''}`);
+            this.refreshBookings();
+          } else {
+            this.walkInError.set(res?.message || 'ไม่สามารถสร้างคิวได้');
+          }
+        },
+        error: (err) => {
+          this.isSubmittingWalkIn.set(false);
+          const errorMsg = err?.error?.message || 'เกิดข้อผิดพลาดในการบันทึก กรุณาตรวจสอบเวลาหรือช่าง';
+          this.walkInError.set(errorMsg);
+        }
       });
   }
 
-  // Save new walk-in booking from modal
-  saveWalkIn() {
-    const name = this.walkInName().trim() || 'ลูกค้า Walk-in';
-    const phone = this.walkInPhone().trim() || 'หน้าร้าน';
-    const service = this.services.find(s => s.id === this.walkInServiceId()) || this.services[0];
-    const barber = this.barbers.find(b => b.id === this.walkInBarberId()) || this.barbers[0];
-    const time = this.walkInTime();
-
-    const newId = Date.now();
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const bookingNo = `BK${new Date().toISOString().slice(0, 10).replace(/-/g, '')}${randomSuffix}`;
-
-    const newBooking: BookingAdminItem = {
-      bookingId: newId,
-      bookingNo,
-      customerName: name,
-      customerPhone: phone,
-      serviceName: service.name,
-      barberName: barber.nickname,
-      dateStr: new Date().toISOString().slice(0, 10),
-      timeStr: time,
-      durationMinutes: service.duration,
-      totalAmount: service.price,
-      status: 'CheckedIn',
-      note: this.walkInNote()
-    };
-
-    this.bookings.update(list => [newBooking, ...list]);
-
-    // Send to backend
-    this.http.post(`${this.apiUrl}/bookings`, {
-      shopId: 1,
-      branchId: 1,
-      employeeId: barber.id,
-      serviceId: service.id,
-      bookingDate: newBooking.dateStr,
-      startTime: time,
-      customerName: name,
-      customerPhone: phone,
-      note: this.walkInNote()
-    }).subscribe({
-      next: () => {},
-      error: () => {}
-    });
-
-    this.showWalkInModal.set(false);
-    this.resetWalkInForm();
+  showToast(msg: string) {
+    this.actionMessage.set(msg);
+    setTimeout(() => {
+      this.actionMessage.set('');
+    }, 4000);
   }
 
   resetWalkInForm() {
     this.walkInName.set('');
     this.walkInPhone.set('');
     this.walkInNote.set('');
+    this.walkInError.set('');
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status) {
+      case 'Pending': return 'รอยืนยัน';
+      case 'Confirmed': return 'ยืนยันแล้ว';
+      case 'CheckedIn': return 'เช็คอินแล้ว';
+      case 'InService': return 'กำลังบริการ';
+      case 'Completed': return 'เสร็จสิ้น';
+      case 'Cancelled': return 'ยกเลิก';
+      default: return status;
+    }
   }
 }

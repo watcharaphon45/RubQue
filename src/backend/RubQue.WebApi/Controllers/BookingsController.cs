@@ -220,9 +220,46 @@ public class BookingsController : BaseApiController
         // 2. Calculate EndTime based on service duration
         var endTime = request.StartTime.AddMinutes(service.DurationMinutes);
 
-        // 3. Concurrency check: check if employee or slot is already booked for overlapping time
+        // 3. ตรวจสอบเวลาทำการของสาขา
+        var dayOfWeek = request.BookingDate.DayOfWeek;
+        var businessHour = await _context.BusinessHours
+            .FirstOrDefaultAsync(bh => bh.BranchId == request.BranchId && bh.DayOfWeek == dayOfWeek, cancellationToken);
+        if (businessHour == null || businessHour.IsClosed)
+        {
+            return BadRequest(Result.Failure("สาขาปิดให้บริการในวันที่เลือก"));
+        }
+
+        // 4. ตรวจสอบช่างและการป้องกันการจองซ้ำซ้อน (Concurrency Conflict Prevention & Auto Assignment)
+        long? assignedEmployeeId = null;
+
         if (request.EmployeeId.HasValue && request.EmployeeId.Value > 0)
         {
+            var emp = await _context.Employees
+                .Include(e => e.EmployeeSchedules)
+                .Include(e => e.EmployeeServices)
+                .FirstOrDefaultAsync(e => e.EmployeeId == request.EmployeeId.Value && e.Status == RecordStatus.Active, cancellationToken);
+
+            if (emp == null)
+            {
+                return BadRequest(Result.Failure("ไม่พบข้อมูลช่างที่เลือก"));
+            }
+
+            if (!emp.EmployeeServices.Any(es => es.ServiceId == request.ServiceId))
+            {
+                return BadRequest(Result.Failure($"ช่าง{emp.Nickname ?? emp.Name} ไม่ได้รับบริการรายการนี้"));
+            }
+
+            var schedule = emp.EmployeeSchedules.FirstOrDefault(s => s.DayOfWeek == dayOfWeek);
+            if (schedule == null || schedule.IsOff)
+            {
+                return BadRequest(Result.Failure($"ช่าง{emp.Nickname ?? emp.Name} หยุดประจำวันดังกล่าว"));
+            }
+
+            if (request.StartTime < schedule.StartTime || endTime > schedule.EndTime)
+            {
+                return BadRequest(Result.Failure($"เวลานัดหมายอยู่นอกเวลาทำงานของช่าง ({schedule.StartTime:HH:mm} - {schedule.EndTime:HH:mm})"));
+            }
+
             var isOverlapping = await _context.Bookings.AnyAsync(b =>
                 b.BranchId == request.BranchId &&
                 b.EmployeeId == request.EmployeeId.Value &&
@@ -238,9 +275,54 @@ public class BookingsController : BaseApiController
             {
                 return Conflict(Result.Failure("ช่วงเวลานี้ช่างมีคิวอื่นจองแล้ว กรุณาเลือกช่วงเวลาอื่น"));
             }
+
+            assignedEmployeeId = emp.EmployeeId;
+        }
+        else
+        {
+            // ให้ระบบเลือกช่างให้ (Auto Assign Barber)
+            var eligibleEmployees = await _context.Employees
+                .Include(e => e.EmployeeSchedules)
+                .Include(e => e.EmployeeServices)
+                .Where(e => e.BranchId == request.BranchId &&
+                            e.Status == RecordStatus.Active &&
+                            e.EmployeeServices.Any(es => es.ServiceId == request.ServiceId) &&
+                            e.EmployeeSchedules.Any(s => s.DayOfWeek == dayOfWeek && !s.IsOff &&
+                                                         s.StartTime <= request.StartTime && s.EndTime >= endTime))
+                .ToListAsync(cancellationToken);
+
+            if (!eligibleEmployees.Any())
+            {
+                return BadRequest(Result.Failure("ไม่มีช่างที่ปฏิบัติงานและให้บริการรายการนี้ในวันดังกล่าว"));
+            }
+
+            // หาช่างที่ไม่มีคิวชนในช่วงเวลานี้
+            var eligibleEmpIds = eligibleEmployees.Select(e => e.EmployeeId).ToList();
+            var busyEmpIds = await _context.Bookings
+                .Where(b => b.BranchId == request.BranchId &&
+                            b.BookingDate == request.BookingDate &&
+                            b.Status != BookingStatus.Cancelled &&
+                            b.Status != BookingStatus.NoShow &&
+                            b.EmployeeId.HasValue &&
+                            eligibleEmpIds.Contains(b.EmployeeId.Value) &&
+                            ((request.StartTime >= b.StartTime && request.StartTime < b.EndTime) ||
+                             (endTime > b.StartTime && endTime <= b.EndTime) ||
+                             (request.StartTime <= b.StartTime && endTime >= b.EndTime)))
+                .Select(b => b.EmployeeId!.Value)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var availableEmployees = eligibleEmployees.Where(e => !busyEmpIds.Contains(e.EmployeeId)).ToList();
+            if (!availableEmployees.Any())
+            {
+                return Conflict(Result.Failure("ไม่มีช่างว่างในช่วงเวลานี้ กรุณาเลือกช่วงเวลาอื่น"));
+            }
+
+            // เลือกช่างว่างคนแรก
+            assignedEmployeeId = availableEmployees.First().EmployeeId;
         }
 
-        // 4. Generate unique Booking No: BK + YYYYMMDD + 4 random digits
+        // 5. Generate unique Booking No: BK + YYYYMMDD + 4 random digits
         var randomSuffix = new Random().Next(1000, 9999);
         var bookingNo = $"BK{request.BookingDate:yyyyMMdd}{randomSuffix}";
 
@@ -250,7 +332,7 @@ public class BookingsController : BaseApiController
             ShopId = request.ShopId > 0 ? request.ShopId : 1,
             BranchId = request.BranchId > 0 ? request.BranchId : 1,
             CustomerId = customer.CustomerId,
-            EmployeeId = request.EmployeeId > 0 ? request.EmployeeId : null,
+            EmployeeId = assignedEmployeeId,
             BookingDate = request.BookingDate,
             StartTime = request.StartTime,
             EndTime = endTime,
